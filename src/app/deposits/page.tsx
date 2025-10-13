@@ -15,7 +15,6 @@ export default function DepositsPage() {
                     My <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-500 to-purple-600">Deposits</span>
                 </h1>
 
-                <Navbar />
                 <ActiveDeposits />
                 <InterestEarnings />
                 <DepositHistory />

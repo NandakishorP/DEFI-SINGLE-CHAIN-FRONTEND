@@ -1,5 +1,7 @@
 'use client'
 
+import Navbar from "@/components/Home/Navbar"
+
 export default function About() {
     return (
         <section className="bg-white py-20">
