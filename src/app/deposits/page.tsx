@@ -1,10 +1,11 @@
 'use client'
 
 import ActiveDeposits from "@/components/Deposits/ActiveDeposits"
+import DepositFunds from "@/components/Deposits/DepositFunds"
 import DepositHistory from "@/components/Deposits/DepositHistory"
 import InterestEarnings from "@/components/Deposits/InterestEarnings"
 import WithdrawFunds from "@/components/Deposits/WithdrawFunds"
-import Navbar from "@/components/Home/Navbar"
+import WithdrawHistory from "@/components/Deposits/WithdrawHistory"
 
 
 export default function DepositsPage() {
@@ -14,11 +15,12 @@ export default function DepositsPage() {
                 <h1 className="text-4xl font-bold text-gray-900 text-center mb-12">
                     My <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-500 to-purple-600">Deposits</span>
                 </h1>
-
+                <DepositFunds />
                 <ActiveDeposits />
                 <InterestEarnings />
                 <DepositHistory />
                 <WithdrawFunds />
+                <WithdrawHistory />
             </div>
         </div>
     )
