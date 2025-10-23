@@ -2,7 +2,7 @@
 
 import React from 'react'
 
-export default function CollateralDetails() {
+export default function LockedCollateralDetails() {
     const collaterals = [
         { id: 1, asset: 'WBTC', value: '$110,000', healthFactor: '1.5', liquidation: '80%' },
         { id: 2, asset: 'ETH', value: '$3,800', healthFactor: '2.1', liquidation: '85%' },
@@ -11,7 +11,7 @@ export default function CollateralDetails() {
     return (
         <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-200 mt-10">
             <h2 className="text-2xl font-bold text-gray-900 mb-6">
-                Collateral <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-500 to-purple-600">Details</span>
+                Locked Collateral <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-500 to-purple-600">Details</span>
             </h2>
             <table className="w-full text-left border-collapse">
                 <thead>

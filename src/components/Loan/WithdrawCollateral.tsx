@@ -1,16 +1,16 @@
 'use client'
 
-import { TOKEN_ADDRESSES } from '@/constants';
-import { useWithdrawLiquidity } from '@/hooks/useLendingPoolContract';
+import { TOKEN_ADDRESSES, LENDING_POOL_ADDRESS, VAULT_ADDRESS } from '@/constants';
+import { useWithdrawCollateral } from '@/hooks/useLendingPoolContract';
 import React, { useEffect, useState } from 'react'
 
-export default function WithdrawFunds() {
+export default function WithdrawCollateral() {
     const [amount, setAmount] = useState('')
-    const [token, setToken] = useState('USDC')
+    const [token, setToken] = useState('WETH')
     const tokenAddress: `0x${string}` = TOKEN_ADDRESSES[token];
     const [showWithdrawConfirmed, setShowWithdrawConfirmed] = useState(false)
 
-    const { withdraw, isSuccess: isWithdrawalSuccess, isPending: isWithdrawalPending, error: withdrawalError } = useWithdrawLiquidity();
+    const { withdraw, isSuccess: isWithdrawalSuccess, isPending: isWithdrawalPending, error: withdrawalError } = useWithdrawCollateral();
 
     useEffect(() => {
         if (withdrawalError) {
@@ -45,18 +45,17 @@ export default function WithdrawFunds() {
     })();
 
     return (
-        <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-200 ">
+        <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-200 mt-10">
             <h2 className="text-2xl font-bold text-gray-900 mb-6">
-                Withdraw <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-500 to-purple-600">Funds</span>
+                Withdraw <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-500 to-purple-600">Collateral</span>
             </h2>
-            <div className="max-w-md">
+            <div className="max-w-md p-4">
                 <label className="block text-sm font-medium text-gray-700 mb-2">Token</label>
                 <select
                     value={token}
                     onChange={(e) => setToken(e.target.value)}
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-700 mb-4"
                 >
-                    <option value="USDC">USDC</option>
                     <option value="WETH">WETH</option>
                     <option value="WBTC">WBTC</option>
                 </select>
@@ -66,7 +65,7 @@ export default function WithdrawFunds() {
                     value={amount}
                     onChange={(e) => setAmount(e.target.value)}
                     placeholder="Enter amount"
-                    className="w-full px-4 py-3 text-gray-600 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-700"
                 />
                 <button
                     onClick={handleWithdraw}
