@@ -30,11 +30,11 @@ export default function AvailableCollateralDetails() {
                     // Skip tokens you don't accept as collateral
                     if (symbol === 'USDT') continue
 
-                    const { tokenTotal, usdValue } = await getUserCollateralSum(address, tokenAddress)
-                    if (Number(tokenTotal) > 0) {
+                    const { availableAmount, usdValue } = await getUserCollateralSum(address, tokenAddress)
+                    if (Number(availableAmount) > 0) {
                         results.push({
                             asset: symbol,
-                            value: Number(tokenTotal).toFixed(4),
+                            value: Number(availableAmount).toFixed(4),
                             usdValue: `$${usdValue.toFixed(2)}`
                         })
                     }

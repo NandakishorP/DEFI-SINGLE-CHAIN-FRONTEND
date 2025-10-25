@@ -407,7 +407,10 @@ export async function getUserCollateralDepositHistory(
 export async function getUserCollateralSum(
     userAddress: string,
     tokenAddress: string
-): Promise<{ tokenTotal: string, usdValue: number }> {
+): Promise<{
+    availableAmount: string,
+    usdValue: number,
+}> {
     const query = `
         query GetUserCollateral($user: Bytes!, $token: Bytes!) {
             collateralDeposits(
@@ -431,6 +434,18 @@ export async function getUserCollateralSum(
                 orderDirection: desc
             ) {
                 amount
+            }
+            loanBorrowals(
+                where: {
+                    user: $user,
+                    tokenAddress: $token,
+                    isLiquidated: false
+                }
+                first: 1000
+                orderBy: timestamp
+                orderDirection: desc
+            ) {
+                collateralUsed
             }
         }
     `;
@@ -459,27 +474,53 @@ export async function getUserCollateralSum(
 
         const deposits = result.data?.collateralDeposits || [];
         const withdrawals = result.data?.collateralWithdrawns || [];
+        const activeLoans = result.data?.loanBorrowals || [];
 
-        // Calculate total deposits
-        const totalDeposited = deposits.reduce((sum: bigint, item: any) => {
+        console.log('Collateral deposits:', deposits.length);
+        console.log('Collateral withdrawals:', withdrawals.length);
+        console.log('Active loans with this collateral:', activeLoans.length);
+
+        // Calculate total deposits 
+        const totalDeposited: bigint = deposits.reduce((sum: bigint, item: any) => {
             return sum + BigInt(item.amount);
         }, BigInt(0));
 
         // Calculate total withdrawals
-        const totalWithdrawn = withdrawals.reduce((sum: bigint, item: any) => {
+        const totalWithdrawn: bigint = withdrawals.reduce((sum: bigint, item: any) => {
             return sum + BigInt(item.amount);
         }, BigInt(0));
 
-        // Net balance = deposits - withdrawals
-        const netBalance = totalDeposited - totalWithdrawn;
+        // Calculate total collateral locked in active loans
+        const totalLocked: bigint = activeLoans.reduce((sum: bigint, loan: any) => {
+            return sum + BigInt(loan.collateralUsed);
+        }, BigInt(0));
+
+        console.log('Total deposited:', totalDeposited.toString());
+        console.log('Total withdrawn:', totalWithdrawn.toString());
+        console.log('Total locked:', totalLocked.toString());
+
+        // Total collateral = deposits - withdrawals
+        const totalCollateral: bigint = totalDeposited - totalWithdrawn;
+        console.log('total col', totalCollateral)
+        // Available collateral = total - locked
+        const availableCollateral: bigint = totalCollateral - totalLocked;
+
+        console.log('ava col', availableCollateral)
+
 
         const decimals = tokenAddress.toLowerCase() === TOKEN_ADDRESSES.USDC.toLowerCase() ? 6 : 18;
-        const tokenTotal = Number(netBalance) / 10 ** decimals;
+        const availableAmount = Number(availableCollateral) / 10 ** decimals;
+
 
         const price = MOCK_TOKEN_PRICES[tokenAddress] || 0;
-        const usdValue = tokenTotal * price;
+        console.log('price', price)
+        const usdValue = availableAmount * price;
 
-        return { tokenTotal: tokenTotal.toString(), usdValue };
+
+        return {
+            availableAmount: availableAmount.toString(),
+            usdValue,
+        };
 
     } catch (error) {
         console.error('Error fetching collateral sum:', error);
@@ -569,8 +610,6 @@ export async function getUserActiveLoans(userAddress: string): Promise<ActiveLoa
                 user
                 tokenAddress
                 amount
-                
-                # Loan details
                 token
                 amountBorrowedInUSDT
                 principalAmount
@@ -586,7 +625,6 @@ export async function getUserActiveLoans(userAddress: string): Promise<ActiveLoa
                 dueDate
                 penaltyCount
                 isLiquidated
-                
                 timestamp
                 transactionHash
                 blockNumber
@@ -610,6 +648,7 @@ export async function getUserActiveLoans(userAddress: string): Promise<ActiveLoa
             console.error("GraphQL Errors:", result.errors);
             return [];
         }
+
 
         return result.data?.loanBorrowals || [];
     } catch (error) {

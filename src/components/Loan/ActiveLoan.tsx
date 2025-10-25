@@ -67,6 +67,7 @@ export default function ActiveLoans() {
     };
 
     const formatAmount = (amount: string, decimals: number = 6) => {
+        console.log(amount)
         return (Number(amount) / 10 ** decimals).toFixed(4);
     };
 
@@ -119,7 +120,6 @@ export default function ActiveLoans() {
             <div className="grid md:grid-cols-2 gap-6">
                 {activeLoans.map((loan) => {
                     const loanToken = getTokenName(loan.asset);
-                    const collateralToken = getTokenName(loan.token);
                     const daysRemaining = calculateDaysRemaining(loan.dueDate);
                     const isOverdue = daysRemaining < 0;
                     const isAtRisk = daysRemaining < 7 && daysRemaining >= 0;
@@ -141,17 +141,15 @@ export default function ActiveLoans() {
                             </div>
 
                             <div className="space-y-1 text-gray-700 text-sm mb-4">
-                                <p><span className="font-semibold">Borrowed (USD):</span> ${formatAmount(loan.amountBorrowedInUSDT, 6)}</p>
-                                <p><span className="font-semibold">Borrowed ({loanToken}):</span> {formatAmount(loan.amountBorrowedInToken, 18)}</p>
-                                <p><span className="font-semibold">Principal:</span> ${formatAmount(loan.principalAmount, 6)}</p>
-                                <p><span className="font-semibold">To Repay:</span> ${formatAmount(loan.principalToRepay, 6)}</p>
+                                <p><span className="font-semibold">Borrowed (USD):</span> ${formatAmount(loan.amountBorrowedInUSDT, 18)}</p>
+                                <p><span className="font-semibold">To Repay:</span> ${formatAmount(loan.principalToRepay, 18)}</p>
                                 <p><span className="font-semibold">Pending Interest:</span> ${formatAmount(loan.pendingInterest, 6)}</p>
                                 <p><span className="font-semibold">Interest Paid:</span> ${formatAmount(loan.interestPaid, 6)}</p>
                             </div>
 
                             <div className="border-t pt-3 mb-4">
                                 <p className="text-sm text-gray-700">
-                                    <span className="font-semibold">Collateral:</span> {formatAmount(loan.collateralUsed, 18)} {collateralToken}
+                                    <span className="font-semibold">Collateral:</span> {formatAmount(loan.collateralUsed, 18)} {loanToken}
                                 </p>
                                 <p className="text-sm text-gray-700">
                                     <span className="font-semibold">Due Date:</span> {formatDate(loan.dueDate)}
