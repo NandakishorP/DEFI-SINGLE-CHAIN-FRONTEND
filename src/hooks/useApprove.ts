@@ -35,17 +35,10 @@ export function useApproveToken() {
             return;
         }
 
-        // Determine decimals based on token address
-        const decimals = tokenAddress.toLowerCase() === '0xa513E6E4b8f2a923D98304ec87F64353C4D5C853'.toLowerCase() ? 6 : 18;
+
+        const decimals = 18;
         const parsedAmount = ethers.parseUnits(String(amount), decimals);
 
-        console.group('🔍 Approval Details');
-        console.log('Token Address:', tokenAddress);
-        console.log('Spender:', spenderAddress);
-        console.log('Amount:', amount);
-        console.log('Decimals:', decimals);
-        console.log('Parsed Amount:', parsedAmount.toString());
-        console.groupEnd();
 
         setIsPending(true);
         setIsSuccess(false);
@@ -54,11 +47,9 @@ export function useApproveToken() {
         try {
             const tx = await contract.approve(spenderAddress, parsedAmount);
             setHash(tx.hash);
-            console.log('📤 Approval transaction sent:', tx.hash);
-            
+
             await tx.wait(0);
-            
-            console.log('✅ Approval confirmed!');
+
             setIsSuccess(true);
         } catch (err: any) {
             console.error('❌ Approval failed:', err);

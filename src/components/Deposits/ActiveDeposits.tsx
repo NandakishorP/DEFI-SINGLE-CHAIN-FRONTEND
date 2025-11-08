@@ -4,9 +4,11 @@ import React, { useEffect, useState } from 'react'
 import { useAccount } from 'wagmi'
 import { getAggregatedUserDeposits } from '@/lib/graphClient'
 import { getTokenName, formatTokenAmount, getTimeSince } from '@/lib/tokenHelpers'
+import { getSupplyAPY } from '@/hooks/useLendingPoolContract'
 
 interface AggregatedDeposit {
     tokenAddress: string;
+    supplyApy: number
     tokenName: string;
     currentBalance: string;
     formattedBalance: string;
@@ -35,26 +37,33 @@ export default function ActiveDeposits() {
             try {
                 const aggregated = await getAggregatedUserDeposits(address);
 
-                // Filter out tokens with 0 balance and format data
-                const activeDeposits = aggregated
-                    .filter(item => {
-                        const balance = item.totalDeposited - item.totalWithdrawn;
-                        return balance > BigInt(0);
-                    })
-                    .map(item => {
-                        const balance = item.totalDeposited - item.totalWithdrawn;
-                        const tokenName = getTokenName(item.tokenAddress);
 
-                        return {
-                            tokenAddress: item.tokenAddress,
-                            tokenName,
-                            currentBalance: balance.toString(),
-                            formattedBalance: formatTokenAmount(balance.toString(), item.tokenAddress),
-                            firstDepositTime: item.firstDepositTime,
-                            timeSince: getTimeSince(item.firstDepositTime),
-                            depositCount: item.depositCount,
-                        };
-                    });
+
+                // Filter out tokens with 0 balance and format data
+                const activeDeposits = await Promise.all(
+                    aggregated
+                        .filter(item => {
+                            const balance = item.totalDeposited - item.totalWithdrawn;
+                            return balance > BigInt(0);
+                        })
+                        .map(async item => {
+                            const balance = item.totalDeposited - item.totalWithdrawn;
+                            const tokenName = getTokenName(item.tokenAddress);
+
+                            const supplyApy = await getSupplyAPY(item.tokenAddress); // ✅ await this
+
+                            return {
+                                tokenAddress: item.tokenAddress,
+                                tokenName,
+                                supplyApy: Number(supplyApy) / 10 ** 18, // ✅ Format it properly
+                                currentBalance: balance.toString(),
+                                formattedBalance: formatTokenAmount(balance.toString(), item.tokenAddress),
+                                firstDepositTime: item.firstDepositTime,
+                                timeSince: getTimeSince(item.firstDepositTime),
+                                depositCount: item.depositCount,
+                            };
+                        })
+                );
 
                 setDeposits(activeDeposits);
             } catch (err) {
@@ -133,7 +142,7 @@ export default function ActiveDeposits() {
                         </div>
                         <div className="space-y-1 text-gray-700 text-sm">
                             <p><span className="font-semibold">Amount:</span> {d.formattedBalance} {d.tokenName}</p>
-                            <p><span className="font-semibold">APY:</span> 5.0%</p>
+                            <p><span className="font-semibold">APY:</span> {d.supplyApy}%</p>
                             <p><span className="font-semibold">Since:</span> {d.timeSince}</p>
                             <p className="text-xs text-gray-500">Total deposits: {d.depositCount}</p>
                         </div>

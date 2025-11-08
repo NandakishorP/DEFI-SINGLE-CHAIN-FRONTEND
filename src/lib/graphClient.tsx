@@ -1,4 +1,4 @@
-import { TOKEN_ADDRESSES } from "@/constants";
+import { getTokenName, TOKEN_ADDRESSES } from "@/constants";
 
 // lib/graphqlClient.ts
 const SUBGRAPH_URL = 'http://localhost:8000/subgraphs/name/local/defi-lending';
@@ -50,6 +50,13 @@ const MOCK_TOKEN_PRICES: Record<string, number> = {
     "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512": 1000,        // 1 ETH = $3200
     "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0513": 2000,       // 1 BTC = $65,000
 
+};
+
+
+const MOCK_TOKEN_PRICES_LOWER: Record<string, number> = {
+    "0xa513e6e4b8f2a923d98304ec87f64353c4d5c853": 1,      // 1 USDC = $1
+    "0xe7f1725e7734ce288f8367e1bb143e90bb3f0512": 1000,   // 1 ETH = $1000
+    "0xe7f1725e7734ce288f8367e1bb143e90bb3f0513": 2000,   // 1 BTC = $2000
 };
 
 export async function getUserWithdrawalHistory(userAddress: string): Promise<DepositWithdrawal[]> {
@@ -242,6 +249,8 @@ export async function getUserWithdrawals(userAddress: string): Promise<DepositWi
 
 
 
+
+
 // Get aggregated deposits (total deposited - total withdrawn per token)
 export async function getAggregatedUserDeposits(userAddress: string) {
     const deposits = await getUserDeposits(userAddress);
@@ -404,128 +413,157 @@ export async function getUserCollateralDepositHistory(
     }
 }
 
-export async function getUserCollateralSum(
-    userAddress: string,
-    tokenAddress: string
-): Promise<{
-    availableAmount: string,
-    usdValue: number,
-}> {
+export interface LoanRepayment {
+    id: string;
+    user: string;
+    tokenAddress: string;
+    amount: string;
+    timestamp: string;
+    transactionHash: string;
+}
+
+export async function getUserRepaymentHistory(userAddress: string): Promise<LoanRepayment[]> {
     const query = `
-        query GetUserCollateral($user: Bytes!, $token: Bytes!) {
-            collateralDeposits(
-                where: {
-                    user: $user,
-                    tokenAddress: $token
-                }
-                first: 1000
+        query GetUserRepaymentHistory($user: Bytes!) {
+            loanRepayments(
+                where: { user: $user }
                 orderBy: timestamp
                 orderDirection: desc
+                first: 100
             ) {
+                id
+                user
+                tokenAddress
                 amount
-            }
-            collateralWithdrawns(
-                where: {
-                    user: $user,
-                    tokenAddress: $token
-                }
-                first: 1000
-                orderBy: timestamp
-                orderDirection: desc
-            ) {
-                amount
-            }
-            loanBorrowals(
-                where: {
-                    user: $user,
-                    tokenAddress: $token,
-                    isLiquidated: false
-                }
-                first: 1000
-                orderBy: timestamp
-                orderDirection: desc
-            ) {
-                collateralUsed
+                timestamp
+                transactionHash
             }
         }
     `;
 
     try {
         const response = await fetch(SUBGRAPH_URL, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
                 query,
                 variables: {
                     user: userAddress.toLowerCase(),
-                    token: tokenAddress.toLowerCase(),
                 },
             }),
         });
 
         const result = await response.json();
-
+        console.log(result, "result")
         if (result.errors) {
-            console.error('GraphQL Errors:', result.errors);
-            throw new Error('Failed to fetch collateral data');
+
+            console.error("GraphQL Errors:", result.errors);
+            throw new Error('Failed to fetch loan repayment history');
+
         }
 
-        const deposits = result.data?.collateralDeposits || [];
-        const withdrawals = result.data?.collateralWithdrawns || [];
-        const activeLoans = result.data?.loanBorrowals || [];
-
-        console.log('Collateral deposits:', deposits.length);
-        console.log('Collateral withdrawals:', withdrawals.length);
-        console.log('Active loans with this collateral:', activeLoans.length);
-
-        // Calculate total deposits 
-        const totalDeposited: bigint = deposits.reduce((sum: bigint, item: any) => {
-            return sum + BigInt(item.amount);
-        }, BigInt(0));
-
-        // Calculate total withdrawals
-        const totalWithdrawn: bigint = withdrawals.reduce((sum: bigint, item: any) => {
-            return sum + BigInt(item.amount);
-        }, BigInt(0));
-
-        // Calculate total collateral locked in active loans
-        const totalLocked: bigint = activeLoans.reduce((sum: bigint, loan: any) => {
-            return sum + BigInt(loan.collateralUsed);
-        }, BigInt(0));
-
-        console.log('Total deposited:', totalDeposited.toString());
-        console.log('Total withdrawn:', totalWithdrawn.toString());
-        console.log('Total locked:', totalLocked.toString());
-
-        // Total collateral = deposits - withdrawals
-        const totalCollateral: bigint = totalDeposited - totalWithdrawn;
-        console.log('total col', totalCollateral)
-        // Available collateral = total - locked
-        const availableCollateral: bigint = totalCollateral - totalLocked;
-
-        console.log('ava col', availableCollateral)
-
-
-        const decimals = tokenAddress.toLowerCase() === TOKEN_ADDRESSES.USDC.toLowerCase() ? 6 : 18;
-        const availableAmount = Number(availableCollateral) / 10 ** decimals;
-
-
-        const price = MOCK_TOKEN_PRICES[tokenAddress] || 0;
-        console.log('price', price)
-        const usdValue = availableAmount * price;
-
-
-        return {
-            availableAmount: availableAmount.toString(),
-            usdValue,
-        };
-
+        return result.data?.loanRepayments || [];
     } catch (error) {
-        console.error('Error fetching collateral sum:', error);
+        console.error("Error fetching repayment history:", error);
         throw error;
     }
+}
+
+export async function getUserCollateralSum(
+    userAddress: string,
+    tokenAddress: string
+): Promise<{
+    totalCollateral: string,
+    lockedInLoans: string,
+    availableAmount: string,
+    usdValue: number,
+}> {
+    const query = `
+        query GetUserCollateral($user: Bytes!, $token: Bytes!) {
+            collateralDeposits(
+                where: { user: $user, tokenAddress: $token }
+                first: 1000
+            ) { amount }
+
+            collateralWithdrawns(
+                where: { user: $user, tokenAddress: $token }
+                first: 1000
+            ) { amount }
+
+            collateralReleases(
+                where: { user: $user, tokenAddress: $token }
+                first: 1000
+            ) { amount }
+
+            loanBorrowals(
+                where: { user: $user, asset: $token, isLiquidated: false }
+                first: 1000
+            ) { collateralUsed }
+        }
+    `;
+
+    const response = await fetch(SUBGRAPH_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            query,
+            variables: {
+                user: userAddress.toLowerCase(),
+                token: tokenAddress.toLowerCase(),
+            },
+        }),
+    });
+
+    const result = await response.json();
+    if (result.errors) {
+        console.error('GraphQL Errors:', result.errors);
+        throw new Error("Failed to fetch collateral data");
+    }
+
+    const deposits = result.data?.collateralDeposits || [];
+    const withdrawals = result.data?.collateralWithdrawns || [];
+    const releases = result.data?.collateralReleases || [];
+    const activeLoans = result.data?.loanBorrowals || [];
+    console.log(activeLoans, "active laons")
+
+
+    const sumBigInt = (arr: any[], key: string) =>
+        arr.reduce((s, x) => s + BigInt(x[key]), BigInt(0));
+
+    const totalDeposited = sumBigInt(deposits, "amount");
+    const totalWithdrawn = sumBigInt(withdrawals, "amount");
+    const totalReleased = sumBigInt(releases, "amount");
+    const totalLocked = sumBigInt(activeLoans, "collateralUsed");
+    console.log('total locked', totalLocked)
+    console.log('total deposited', totalDeposited)
+    console.log('total totalReleased', totalReleased)
+    console.log('total totalWithdrawn', totalWithdrawn)
+
+
+
+    // ✅ CORRECTED LOGIC:
+    // Total collateral = deposits - withdrawals + released
+    // Available = total - locked
+
+    const totalCollateral = totalDeposited - totalWithdrawn + totalReleased - totalLocked;
+    const availableCollateral = totalCollateral - totalLocked;
+
+
+
+    const decimals = 18;
+    const totalAmount = Number(totalCollateral) / 10 ** decimals;
+    const lockedAmount = Number(totalLocked) / 10 ** decimals;
+    const availableAmount = Number(availableCollateral) / 10 ** decimals;
+
+    const price = MOCK_TOKEN_PRICES[tokenAddress] || 0;
+    const usdValue = totalAmount * price;
+
+    return {
+        totalCollateral: totalAmount.toString(),
+        lockedInLoans: lockedAmount.toString(),
+        availableAmount: availableAmount.toString(),
+        usdValue,
+    };
 }
 
 export async function getUserBorrowingPower(
@@ -593,7 +631,8 @@ export interface ActiveLoan {
     transactionHash: string;
     blockNumber: string;
 }
-
+// 10000000000000000000
+// 100000000000000000000
 export async function getUserActiveLoans(userAddress: string): Promise<ActiveLoan[]> {
     const query = `
         query GetUserActiveLoans($user: Bytes!) {
@@ -654,5 +693,118 @@ export async function getUserActiveLoans(userAddress: string): Promise<ActiveLoa
     } catch (error) {
         console.error("Error fetching active loans:", error);
         return [];
+    }
+}
+
+
+
+export interface LockedCollateralDetails {
+    tokenAddress: string;
+    tokenName: string;
+    totalCollateralAmount: string;
+    totalCollateralValueUSD: number;
+    initalCollateralValueInUSD: number
+    totalBorrowedUSD: number;
+    healthFactor: number;
+    liquidationThreshold: number;
+    liquidationPrice: number;
+    currentPrice: number;
+    isAtRisk: boolean;
+    loanCount: number;
+}
+export async function getUserLockedCollateralDetails(
+    userAddress: string
+): Promise<LockedCollateralDetails[]> {
+
+    try {
+        // Fetch all active loans
+        const loans = await getUserActiveLoans(userAddress);
+
+        if (loans.length === 0) {
+            return [];
+        }
+
+        // Group loans by collateral token (the 'token' field)
+        const collateralMap = new Map<string, {
+            totalCollateral: bigint;
+            totalBorrowedUSD: bigint;
+            loanCount: number;
+        }>();
+
+        loans.forEach(loan => {
+            const collateralToken = loan.asset;
+            const existing = collateralMap.get(collateralToken) || {
+                totalCollateral: BigInt(0),
+                totalBorrowedUSD: BigInt(0),
+                loanCount: 0,
+            };
+
+            existing.totalCollateral += BigInt(loan.collateralUsed);
+            existing.totalBorrowedUSD += BigInt(loan.amountBorrowedInUSDT);
+            existing.loanCount += 1;
+
+            collateralMap.set(collateralToken, existing);
+        });
+
+
+        // Calculate health factors and details for each token
+        const details: LockedCollateralDetails[] = [];
+
+        for (const [tokenAddress, data] of collateralMap.entries()) {
+
+            const currentPrice = MOCK_TOKEN_PRICES_LOWER[tokenAddress] || 0;
+
+            if (currentPrice === 0) {
+                console.warn('⚠️ Price not found for token:', tokenAddress);
+            }
+
+            // Collateral tokens (WETH, WBTC) use 18 decimals
+            const decimals = 18;
+
+            // Convert collateral to number
+            const collateralAmount = Number(data.totalCollateral) / 10 ** decimals;
+
+
+            const collateralValueUSD = collateralAmount * currentPrice;
+
+
+            const borrowedUSD = Number(data.totalBorrowedUSD) / 10 ** decimals;
+
+
+
+            // Health Factor = (Collateral Value × Liquidation Threshold) / Borrowed Value
+            const liquidationThreshold = 0.8;
+            const collatearlValueUSDAtLending = borrowedUSD / .75;
+            const healthFactor = borrowedUSD > 0
+                ? (collateralValueUSD) / (collatearlValueUSDAtLending * liquidationThreshold)
+                : 999;
+            const liquidationPrice = collateralAmount > 0
+                ? collatearlValueUSDAtLending * liquidationThreshold
+                : 0;
+
+            const isAtRisk = healthFactor < 1.2;
+
+            const detail = {
+                tokenAddress,
+                tokenName: getTokenName(tokenAddress),
+                totalCollateralAmount: collateralAmount.toFixed(6),
+                totalCollateralValueUSD: collateralValueUSD,
+                initalCollateralValueInUSD: collatearlValueUSDAtLending,
+                totalBorrowedUSD: borrowedUSD,
+                healthFactor,
+                liquidationThreshold: liquidationThreshold * 100,
+                liquidationPrice,
+                currentPrice,
+                isAtRisk,
+                loanCount: data.loanCount,
+            };
+
+            details.push(detail);
+        }
+
+        return details;
+    } catch (error) {
+        console.error('❌ Error in getUserLockedCollateralDetails:', error);
+        throw error;
     }
 }

@@ -1,7 +1,7 @@
 // components/markets/AssetPriceTicker.tsx
 'use client'
 
-import React from "react"
+import React, { useState, useEffect } from "react"
 
 interface Asset {
     symbol: string
@@ -10,7 +10,7 @@ interface Asset {
     change: number
 }
 
-const assets: Asset[] = [
+const initialAssets: Asset[] = [
     { symbol: "ETH", name: "Ethereum", price: "$1,950", change: +2.4 },
     { symbol: "BTC", name: "Bitcoin", price: "$29,500", change: -1.1 },
     { symbol: "USDC", name: "USD Coin", price: "$1.00", change: 0.0 },
@@ -18,7 +18,67 @@ const assets: Asset[] = [
     { symbol: "MATIC", name: "Polygon", price: "$0.75", change: +3.1 },
 ]
 
+// Map your symbols to CoinGecko IDs
+const symbolToId: Record<string, string> = {
+    ETH: "ethereum",
+    BTC: "bitcoin",
+    USDC: "usd-coin",
+    DAI: "dai",
+    MATIC: "matic-network"
+}
+
 export default function AssetPriceTicker() {
+    const [assets, setAssets] = useState<Asset[]>(initialAssets)
+
+    const fetchPrices = async () => {
+        try {
+            const ids = Object.values(symbolToId).join(',')
+            const response = await fetch(
+                `https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd&include_24hr_change=true`
+            )
+
+            if (!response.ok) throw new Error('Failed to fetch prices')
+
+            const data = await response.json()
+
+            const updatedAssets = initialAssets.map(asset => {
+                const coinId = symbolToId[asset.symbol]
+                const coinData = data[coinId]
+
+                // Check if coinData and usd price exist
+                if (coinData && coinData.usd !== undefined) {
+                    const price = coinData.usd
+                    const change = coinData.usd_24h_change || 0
+
+                    return {
+                        ...asset,
+                        price: `$${price.toLocaleString('en-US', {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2
+                        })}`,
+                        change: parseFloat(change.toFixed(1))
+                    }
+                }
+                return asset
+            })
+
+            setAssets(updatedAssets)
+        } catch (error) {
+            console.error('Error fetching crypto prices:', error)
+        }
+    }
+
+    useEffect(() => {
+        // Fetch prices immediately on mount
+        fetchPrices()
+
+        // Set up interval to fetch every 30 seconds
+        const interval = setInterval(fetchPrices, 30000)
+
+        // Cleanup interval on unmount
+        return () => clearInterval(interval)
+    }, [])
+
     return (
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mt-6">
             <h2 className="text-lg font-semibold text-gray-800 mb-4">Asset Prices</h2>

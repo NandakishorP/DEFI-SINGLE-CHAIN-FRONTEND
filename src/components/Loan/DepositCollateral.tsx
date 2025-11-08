@@ -55,7 +55,6 @@ export default function DepositCollateral() {
     useEffect(() => {
         if (isApprovalSuccess) {
             setIsApproved(true);
-            console.log("Token approved successfully. Ready to deposit.");
         }
     }, [isApprovalSuccess]);
 

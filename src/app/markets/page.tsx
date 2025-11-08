@@ -1,13 +1,10 @@
 // app/markets/page.tsx
 'use client'
 
-import ActiveMarketsCard from "@/components/Markets/ActiveMarketsCard"
+import StatusCard from "@/components/Markets/StatusCard"
 import AssetPriceTicker from "@/components/Markets/AssetsPriceTicker"
 import MarketsChart from "@/components/Markets/MarketsChart"
 import MarketTable from "@/components/Markets/MarketTable"
-import TVLCard from "@/components/Markets/TVLCard"
-import UserPortfolioCard from "@/components/Markets/UserPortfolioCards"
-import VolumeCard from "@/components/Markets/VolumeCard"
 import React from "react"
 
 // Import upcoming UI components (we'll create them step by step)
@@ -21,11 +18,9 @@ export default function MarketsPage() {
             </h1>
 
             {/* Overview Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                <TVLCard />
-                <VolumeCard />
-                <ActiveMarketsCard />
-            </div>
+            <section className="mb-8">
+                <StatusCard />  {/* This already has the responsive 3 columns */}
+            </section>
 
             {/* Price Ticker */}
             <div className="mb-8">
@@ -43,10 +38,7 @@ export default function MarketsPage() {
                 {/* More charts can be added later */}
             </div>
 
-            {/* User Portfolio (optional) */}
-            <div>
-                <UserPortfolioCard />
-            </div>
+
         </div>
     )
 }
